@@ -20,6 +20,7 @@ public class Combiner {
     final static int NOT_ENOUGH_ROLLS_ERROR = 1;
     final static int NO_TEXT_ENTERED_ERROR = 2;
     final static int INVALID_TEXT_ERROR = 3;
+    final static int DIE_VALUE_OUT_OF_BOUNDS = 4;
     
     
     private int error;
@@ -57,9 +58,10 @@ public class Combiner {
      * Use the already calculated betweenCombos with the given input to find all
      * possible primes that can be generated.
      * @param text The String list of primes.
+     * @param allowD8 Whether or not d8s are allowed.
      * @return True if primes where successfully calculated.
      */
-    public boolean calculatePrimes(String text) {
+    public boolean calculatePrimes(String text, boolean allowD8) {
         //Clear the storage
         this.currentPrimeEq.clear();
         this.currentPrimes.clear();
@@ -80,14 +82,23 @@ public class Combiner {
 
         int[] rolls = new int[rollsList.length];
 
+        for (int i = 0; i < rollsList.length; i++) {
+            rolls[i] = Integer.parseInt(rollsList[i]);
+            //Make sure the roll is within range
+            if(allowD8 && rolls[i]>8 || !allowD8 && rolls[i] > 6){
+                error = Combiner.DIE_VALUE_OUT_OF_BOUNDS;
+                return false;
+            }
+        }
+        
+        return calculatePrimes(rolls);
+    }
+    
+    public boolean calculatePrimes(int[] rolls){
         //Make sure there is a correct number of rolls
         if (rolls.length != comboLength - 1) {
             error = Combiner.NOT_ENOUGH_ROLLS_ERROR;
             return false;
-        }
-
-        for (int i = 0; i < rollsList.length; i++) {
-            rolls[i] = Integer.parseInt(rollsList[i]);
         }
 
         //Place the rolls through each combo and compute     
@@ -279,4 +290,13 @@ public class Combiner {
     public boolean isCombosUpToDate() {
         return this.comboLength == numDie + 1;
     }
+
+    public int getNumDie() {
+        return numDie;
+    }
+    
+    public int getNumBetweens(){
+        return this.betweenCombos.size();
+    }
+    
 }

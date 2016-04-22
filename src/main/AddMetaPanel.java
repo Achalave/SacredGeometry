@@ -5,8 +5,10 @@
  */
 package main;
 
+import java.awt.Component;
 import javax.swing.JDialog;
 import javax.swing.JFrame;
+import static main.AddSpellPanel.EXIT_FAILED;
 
 /**
  *
@@ -19,6 +21,7 @@ public class AddMetaPanel extends javax.swing.JPanel {
     
     int exitStatus;
     
+    JDialog frame;
     /**
      * Creates new form AddSpellPanel
      */
@@ -26,9 +29,16 @@ public class AddMetaPanel extends javax.swing.JPanel {
         initComponents();
     }
 
-    public void displaySelf(){
-        JDialog frame = new JDialog();
-        frame.add(this);
+    public void displaySelf(Component c){
+        if (frame == null) {
+            frame = new JDialog();
+            frame.setModal(true);
+            frame.add(this);
+            frame.pack();
+            frame.setResizable(false);
+        }
+        exitStatus = EXIT_FAILED;
+        frame.setLocationRelativeTo(c);
         frame.setVisible(true);
     }
     
@@ -61,8 +71,18 @@ public class AddMetaPanel extends javax.swing.JPanel {
         jSpinner1 = new javax.swing.JSpinner();
 
         addSpellButton.setText("Add Metamagic");
+        addSpellButton.addActionListener(new java.awt.event.ActionListener() {
+            public void actionPerformed(java.awt.event.ActionEvent evt) {
+                addSpellButtonActionPerformed(evt);
+            }
+        });
 
         cancelButton.setText("Cancel");
+        cancelButton.addActionListener(new java.awt.event.ActionListener() {
+            public void actionPerformed(java.awt.event.ActionEvent evt) {
+                cancelButtonActionPerformed(evt);
+            }
+        });
 
         jLabel1.setText("Metamagic Name:");
 
@@ -104,6 +124,15 @@ public class AddMetaPanel extends javax.swing.JPanel {
                 .addContainerGap(javax.swing.GroupLayout.DEFAULT_SIZE, Short.MAX_VALUE))
         );
     }// </editor-fold>//GEN-END:initComponents
+
+    private void addSpellButtonActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_addSpellButtonActionPerformed
+        exitStatus = AddMetaPanel.EXIT_SUCCESS;
+        frame.setVisible(false);
+    }//GEN-LAST:event_addSpellButtonActionPerformed
+
+    private void cancelButtonActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_cancelButtonActionPerformed
+        frame.setVisible(false);
+    }//GEN-LAST:event_cancelButtonActionPerformed
 
 
     // Variables declaration - do not modify//GEN-BEGIN:variables

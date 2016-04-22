@@ -5,6 +5,7 @@
  */
 package main;
 
+import java.awt.Container;
 import javax.swing.JDialog;
 import javax.swing.JFrame;
 
@@ -16,9 +17,11 @@ public class AddSpellPanel extends javax.swing.JPanel {
 
     final static int EXIT_SUCCESS = 0;
     final static int EXIT_FAILED = 1;
-    
+
     int exitStatus;
-    
+
+    JDialog frame;
+
     /**
      * Creates new form AddSpellPanel
      */
@@ -26,24 +29,31 @@ public class AddSpellPanel extends javax.swing.JPanel {
         initComponents();
     }
 
-    public void displaySelf(){
-        JDialog frame = new JDialog();
-        frame.add(this);
+    public void displaySelf(Container c) {
+        if (frame == null) {
+            frame = new JDialog();
+            frame.setModal(true);
+            frame.add(this);
+            frame.pack();
+            frame.setResizable(false);
+        }
+        exitStatus = EXIT_FAILED;
+        frame.setLocationRelativeTo(c);
         frame.setVisible(true);
     }
-    
-    public int getExitStatus(){
+
+    public int getExitStatus() {
         return exitStatus;
     }
-    
-    public String getSpellName(){
+
+    public String getSpellName() {
         return this.jTextField1.getText();
     }
-    
-    public int getSpellLevel(){
-        return (int)this.jSpinner1.getValue();
+
+    public int getSpellLevel() {
+        return (int) this.jSpinner1.getValue();
     }
-    
+
     /**
      * This method is called from within the constructor to initialize the form.
      * WARNING: Do NOT modify this code. The content of this method is always
@@ -61,8 +71,18 @@ public class AddSpellPanel extends javax.swing.JPanel {
         jSpinner1 = new javax.swing.JSpinner();
 
         addSpellButton.setText("Add Spell");
+        addSpellButton.addActionListener(new java.awt.event.ActionListener() {
+            public void actionPerformed(java.awt.event.ActionEvent evt) {
+                addSpellButtonActionPerformed(evt);
+            }
+        });
 
         cancelButton.setText("Cancel");
+        cancelButton.addActionListener(new java.awt.event.ActionListener() {
+            public void actionPerformed(java.awt.event.ActionEvent evt) {
+                cancelButtonActionPerformed(evt);
+            }
+        });
 
         jLabel1.setText("Spell Name:");
 
@@ -104,6 +124,15 @@ public class AddSpellPanel extends javax.swing.JPanel {
                 .addContainerGap(javax.swing.GroupLayout.DEFAULT_SIZE, Short.MAX_VALUE))
         );
     }// </editor-fold>//GEN-END:initComponents
+
+    private void addSpellButtonActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_addSpellButtonActionPerformed
+        exitStatus = AddMetaPanel.EXIT_SUCCESS;
+        frame.setVisible(false);
+    }//GEN-LAST:event_addSpellButtonActionPerformed
+
+    private void cancelButtonActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_cancelButtonActionPerformed
+        frame.setVisible(false);
+    }//GEN-LAST:event_cancelButtonActionPerformed
 
 
     // Variables declaration - do not modify//GEN-BEGIN:variables

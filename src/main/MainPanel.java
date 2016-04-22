@@ -6,6 +6,7 @@
 package main;
 
 import java.awt.Color;
+import java.awt.Container;
 import java.awt.event.ActionEvent;
 import java.awt.event.ActionListener;
 import java.awt.event.ItemEvent;
@@ -16,6 +17,11 @@ import javax.swing.BoxLayout;
 import javax.swing.DefaultListModel;
 import javax.swing.JCheckBox;
 import javax.swing.JFrame;
+import javax.swing.JMenu;
+import javax.swing.JMenuBar;
+import javax.swing.JMenuItem;
+import javax.swing.JOptionPane;
+import javax.swing.JRadioButtonMenuItem;
 import javax.swing.Timer;
 
 /**
@@ -49,15 +55,47 @@ public class MainPanel extends javax.swing.JPanel {
     AddSpellPanel addSpell;
     AddMetaPanel addMeta;
     
+    boolean d8 = false;
+    
     public static void main(String[] args){
         JFrame frame = new JFrame();
         MainPanel mp = new MainPanel();
         frame.add(mp);
+        frame.setJMenuBar(mp.generateMenuBar());
         frame.setSize(mp.getPreferredSize());
         frame.setVisible(true);
         frame.setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
     }
     
+    private JMenuBar generateMenuBar(){
+        final Container container = this;
+        JMenuBar menuBar = new JMenuBar();
+        
+        JMenu calculate = new JMenu("Features");
+        menuBar.add(calculate);
+        
+        JMenuItem item = new JRadioButtonMenuItem("D8 option");
+        ((JRadioButtonMenuItem)item).setSelected(d8);
+        item.addActionListener(new ActionListener(){
+            @Override
+            public void actionPerformed(ActionEvent ae) {
+                System.out.println("TEST");
+            }
+        });
+        calculate.add(item);
+        
+        
+        item = new JMenuItem("Probabilities");
+        item.addActionListener(new ActionListener(){
+            @Override
+            public void actionPerformed(ActionEvent ae) {
+                new ProbabilityPanel().displaySelf(container);
+            }
+        });
+        calculate.add(item);
+        
+        return menuBar;
+    }
     
     /**
      * Creates new form Test
@@ -85,6 +123,7 @@ public class MainPanel extends javax.swing.JPanel {
         this.comboRecalcTimer = new Timer(TIME_BEFORE_REFRESH, new ActionListener() {
             @Override
             public void actionPerformed(ActionEvent ae) {
+                combiner.setNumDie((int)dieCounter.getValue());
                 combiner.calculateBetweenCombos();
             }
         });
@@ -100,7 +139,7 @@ public class MainPanel extends javax.swing.JPanel {
         this.rollsError.setRepeats(false);
 
     }
-
+    
     private void loadSpells() {
 
     }
@@ -132,9 +171,14 @@ public class MainPanel extends javax.swing.JPanel {
         this.rollTextField.setText("Invalid Text!");
     }    
 
+    private void displayDieOutOfBoundsError(){
+        this.setupForRollsError();
+        this.rollTextField.setText("Die Value Out of Bounds!");
+    }  
+    
     public void castSpell(){
         //Find the primes that can be created
-        if(!combiner.calculatePrimes(rolls)){
+        if(!combiner.calculatePrimes(rolls,d8)){
             //If it failded to calculate the primes check the error message
             switch(combiner.getError()){
                 case Combiner.INVALID_TEXT_ERROR:
@@ -145,6 +189,9 @@ public class MainPanel extends javax.swing.JPanel {
                     return;
                 case Combiner.NO_TEXT_ENTERED_ERROR:
                     this.displayNoRollTextEntered();
+                    return;
+                case Combiner.DIE_VALUE_OUT_OF_BOUNDS:
+                    this.displayDieOutOfBoundsError();
                     return;
             }
         }
@@ -256,29 +303,37 @@ public class MainPanel extends javax.swing.JPanel {
         jLabel1 = new javax.swing.JLabel();
         jLabel2 = new javax.swing.JLabel();
         jLabel3 = new javax.swing.JLabel();
-        jButton1 = new javax.swing.JButton();
-        jButton2 = new javax.swing.JButton();
-        jButton3 = new javax.swing.JButton();
-        jButton4 = new javax.swing.JButton();
-        jButton5 = new javax.swing.JButton();
+        addSpellButton = new javax.swing.JButton();
+        deleteSpellButton = new javax.swing.JButton();
+        addMetaButton = new javax.swing.JButton();
+        deleteMetaButton = new javax.swing.JButton();
+        submitRollButton = new javax.swing.JButton();
+        dieCounter = new javax.swing.JSpinner();
+        jLabel4 = new javax.swing.JLabel();
 
         javax.swing.GroupLayout metamagicPanelLayout = new javax.swing.GroupLayout(metamagicPanel);
         metamagicPanel.setLayout(metamagicPanelLayout);
         metamagicPanelLayout.setHorizontalGroup(
             metamagicPanelLayout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
-            .addGap(0, 189, Short.MAX_VALUE)
+            .addGap(0, 207, Short.MAX_VALUE)
         );
         metamagicPanelLayout.setVerticalGroup(
             metamagicPanelLayout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
-            .addGap(0, 298, Short.MAX_VALUE)
+            .addGap(0, 353, Short.MAX_VALUE)
         );
 
         jScrollPane1.setViewportView(metamagicPanel);
 
+        spellCastText.setEditable(false);
         spellCastText.setColumns(20);
         spellCastText.setRows(5);
         jScrollPane2.setViewportView(spellCastText);
 
+        spellsList.addListSelectionListener(new javax.swing.event.ListSelectionListener() {
+            public void valueChanged(javax.swing.event.ListSelectionEvent evt) {
+                spellsListValueChanged(evt);
+            }
+        });
         jScrollPane3.setViewportView(spellsList);
 
         jLabel1.setFont(new java.awt.Font("Viner Hand ITC", 0, 18)); // NOI18N
@@ -293,15 +348,38 @@ public class MainPanel extends javax.swing.JPanel {
         jLabel3.setHorizontalAlignment(javax.swing.SwingConstants.CENTER);
         jLabel3.setText("Result");
 
-        jButton1.setText("Add Spell");
+        addSpellButton.setText("Add Spell");
+        addSpellButton.addActionListener(new java.awt.event.ActionListener() {
+            public void actionPerformed(java.awt.event.ActionEvent evt) {
+                addSpellButtonActionPerformed(evt);
+            }
+        });
 
-        jButton2.setText("Delete Spell");
+        deleteSpellButton.setText("Delete Spell");
 
-        jButton3.setText("Add Metamagic");
+        addMetaButton.setText("Add Metamagic");
+        addMetaButton.addActionListener(new java.awt.event.ActionListener() {
+            public void actionPerformed(java.awt.event.ActionEvent evt) {
+                addMetaButtonActionPerformed(evt);
+            }
+        });
 
-        jButton4.setText("Delete Metamagic");
+        deleteMetaButton.setText("Delete Metamagic");
 
-        jButton5.setText("Submit Rolls");
+        submitRollButton.setText("Submit Roll");
+        submitRollButton.addActionListener(new java.awt.event.ActionListener() {
+            public void actionPerformed(java.awt.event.ActionEvent evt) {
+                submitRollButtonActionPerformed(evt);
+            }
+        });
+
+        dieCounter.addChangeListener(new javax.swing.event.ChangeListener() {
+            public void stateChanged(javax.swing.event.ChangeEvent evt) {
+                dieCounterStateChanged(evt);
+            }
+        });
+
+        jLabel4.setText("Num Die:");
 
         javax.swing.GroupLayout layout = new javax.swing.GroupLayout(this);
         this.setLayout(layout);
@@ -312,8 +390,8 @@ public class MainPanel extends javax.swing.JPanel {
                 .addGroup(layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
                     .addComponent(jLabel1, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, Short.MAX_VALUE)
                     .addComponent(jScrollPane3, javax.swing.GroupLayout.Alignment.TRAILING, javax.swing.GroupLayout.PREFERRED_SIZE, 0, Short.MAX_VALUE)
-                    .addComponent(jButton2, javax.swing.GroupLayout.DEFAULT_SIZE, 191, Short.MAX_VALUE)
-                    .addComponent(jButton1, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, Short.MAX_VALUE))
+                    .addComponent(deleteSpellButton, javax.swing.GroupLayout.DEFAULT_SIZE, 211, Short.MAX_VALUE)
+                    .addComponent(addSpellButton, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, Short.MAX_VALUE))
                 .addGroup(layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
                     .addGroup(javax.swing.GroupLayout.Alignment.TRAILING, layout.createSequentialGroup()
                         .addGroup(layout.createParallelGroup(javax.swing.GroupLayout.Alignment.TRAILING)
@@ -327,16 +405,21 @@ public class MainPanel extends javax.swing.JPanel {
                     .addGroup(javax.swing.GroupLayout.Alignment.TRAILING, layout.createSequentialGroup()
                         .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED)
                         .addGroup(layout.createParallelGroup(javax.swing.GroupLayout.Alignment.TRAILING)
-                            .addComponent(jButton4, javax.swing.GroupLayout.DEFAULT_SIZE, 187, Short.MAX_VALUE)
-                            .addComponent(jButton3, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, Short.MAX_VALUE))
+                            .addComponent(deleteMetaButton, javax.swing.GroupLayout.DEFAULT_SIZE, 207, Short.MAX_VALUE)
+                            .addComponent(addMetaButton, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, Short.MAX_VALUE))
                         .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED)))
                 .addGroup(layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
                     .addComponent(jLabel3, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, Short.MAX_VALUE)
                     .addGroup(layout.createSequentialGroup()
                         .addGap(1, 1, 1)
-                        .addComponent(jScrollPane2, javax.swing.GroupLayout.DEFAULT_SIZE, 190, Short.MAX_VALUE))
-                    .addComponent(rollTextField)
-                    .addComponent(jButton5, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, Short.MAX_VALUE))
+                        .addComponent(jScrollPane2, javax.swing.GroupLayout.DEFAULT_SIZE, 212, Short.MAX_VALUE))
+                    .addComponent(submitRollButton, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, Short.MAX_VALUE)
+                    .addGroup(layout.createSequentialGroup()
+                        .addComponent(jLabel4)
+                        .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED)
+                        .addComponent(dieCounter, javax.swing.GroupLayout.PREFERRED_SIZE, 37, javax.swing.GroupLayout.PREFERRED_SIZE)
+                        .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED)
+                        .addComponent(rollTextField)))
                 .addContainerGap())
         );
         layout.setVerticalGroup(
@@ -349,26 +432,27 @@ public class MainPanel extends javax.swing.JPanel {
                     .addComponent(jLabel2))
                 .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED)
                 .addGroup(layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
+                    .addComponent(jScrollPane1, javax.swing.GroupLayout.DEFAULT_SIZE, 355, Short.MAX_VALUE)
+                    .addComponent(jScrollPane2)
+                    .addComponent(jScrollPane3))
+                .addGap(15, 15, 15)
+                .addGroup(layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
                     .addGroup(layout.createSequentialGroup()
-                        .addComponent(jScrollPane1)
-                        .addGap(75, 75, 75))
-                    .addGroup(layout.createSequentialGroup()
-                        .addComponent(jScrollPane2)
-                        .addGap(18, 18, 18)
-                        .addComponent(rollTextField, javax.swing.GroupLayout.PREFERRED_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.PREFERRED_SIZE)
-                        .addGap(37, 37, 37))
-                    .addGroup(javax.swing.GroupLayout.Alignment.TRAILING, layout.createSequentialGroup()
-                        .addComponent(jScrollPane3)
-                        .addGap(18, 18, 18)
                         .addGroup(layout.createParallelGroup(javax.swing.GroupLayout.Alignment.BASELINE)
-                            .addComponent(jButton1)
-                            .addComponent(jButton3))
+                            .addComponent(jLabel4)
+                            .addComponent(dieCounter, javax.swing.GroupLayout.PREFERRED_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.PREFERRED_SIZE)
+                            .addComponent(rollTextField, javax.swing.GroupLayout.PREFERRED_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.PREFERRED_SIZE))
+                        .addGap(50, 50, 50))
+                    .addGroup(layout.createSequentialGroup()
+                        .addGroup(layout.createParallelGroup(javax.swing.GroupLayout.Alignment.BASELINE)
+                            .addComponent(addSpellButton)
+                            .addComponent(addMetaButton))
                         .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.UNRELATED)
                         .addGroup(layout.createParallelGroup(javax.swing.GroupLayout.Alignment.BASELINE)
-                            .addComponent(jButton2)
-                            .addComponent(jButton4)
-                            .addComponent(jButton5))))
-                .addContainerGap())
+                            .addComponent(deleteSpellButton)
+                            .addComponent(deleteMetaButton)
+                            .addComponent(submitRollButton))
+                        .addGap(0, 0, 0))))
         );
     }// </editor-fold>//GEN-END:initComponents
 
@@ -376,14 +460,22 @@ public class MainPanel extends javax.swing.JPanel {
         String name;
         int level;
 
-        addMeta.displaySelf();
+        addMeta.displaySelf(this);
         
         if(addMeta.getExitStatus() == AddMetaPanel.EXIT_FAILED){
             return;
         }
-        
+                
         name = addMeta.getName();
         level = addMeta.getSpellLevel();
+        
+        if(name == null || name.isEmpty()){
+            JOptionPane.showMessageDialog(this, "You must provide a metamagic name.");
+            return;
+        }else if(spells.containsKey(name)){
+            JOptionPane.showMessageDialog(this, "That metamagic already exists in the list.");
+            return;
+        }
         
         this.addMetamagic(name, level);
     }//GEN-LAST:event_addMetaButtonActionPerformed
@@ -413,7 +505,7 @@ public class MainPanel extends javax.swing.JPanel {
         String name;
         int level;
 
-        addSpell.displaySelf();
+        addSpell.displaySelf(this);
         
         if(addSpell.getExitStatus() == AddSpellPanel.EXIT_FAILED){
             return;
@@ -422,10 +514,18 @@ public class MainPanel extends javax.swing.JPanel {
         name = addSpell.getName();
         level = addSpell.getSpellLevel();
 
+        if(name == null || name.isEmpty()){
+            JOptionPane.showMessageDialog(this, "You must provide a spell name.");
+            return;
+        }else if(spells.containsKey(name)){
+            JOptionPane.showMessageDialog(this, "That spell already exists in the list.");
+            return;
+        }
+        
         this.addSpell(name, level);
     }//GEN-LAST:event_addSpellButtonActionPerformed
 
-    private void attemptCastButtonActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_attemptCastButtonActionPerformed
+    private void submitRollButtonActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_submitRollButtonActionPerformed
         //Make sure the combos are up to date
         if (this.comboRecalcTimer.isRunning()) {
             this.comboRecalcTimer.stop();
@@ -436,19 +536,20 @@ public class MainPanel extends javax.swing.JPanel {
 
         //Calculate the primes
         castSpell();
-    }//GEN-LAST:event_attemptCastButtonActionPerformed
+    }//GEN-LAST:event_submitRollButtonActionPerformed
 
 
 
     // Variables declaration - do not modify//GEN-BEGIN:variables
-    private javax.swing.JButton jButton1;
-    private javax.swing.JButton jButton2;
-    private javax.swing.JButton jButton3;
-    private javax.swing.JButton jButton4;
-    private javax.swing.JButton jButton5;
+    private javax.swing.JButton addMetaButton;
+    private javax.swing.JButton addSpellButton;
+    private javax.swing.JButton deleteMetaButton;
+    private javax.swing.JButton deleteSpellButton;
+    private javax.swing.JSpinner dieCounter;
     private javax.swing.JLabel jLabel1;
     private javax.swing.JLabel jLabel2;
     private javax.swing.JLabel jLabel3;
+    private javax.swing.JLabel jLabel4;
     private javax.swing.JScrollPane jScrollPane1;
     private javax.swing.JScrollPane jScrollPane2;
     private javax.swing.JScrollPane jScrollPane3;
@@ -456,5 +557,6 @@ public class MainPanel extends javax.swing.JPanel {
     private javax.swing.JTextField rollTextField;
     private javax.swing.JTextArea spellCastText;
     private javax.swing.JList<String> spellsList;
+    private javax.swing.JButton submitRollButton;
     // End of variables declaration//GEN-END:variables
 }
