@@ -1,5 +1,6 @@
 package main;
 
+import java.io.PrintWriter;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.HashMap;
@@ -19,10 +20,9 @@ public class ProbabilityCalculator {
     HashMap<Integer, Integer> levels;
     long timeToCalculate;
     int outerNumber;
-    
 
     Thread thread;
-    
+
     public void setNumDie(int numDie, boolean d8) {
         this.numDie = numDie;
         this.d8 = d8;
@@ -30,20 +30,20 @@ public class ProbabilityCalculator {
         combiner = new Combiner();
     }
 
-    public void calculateProbabilities(boolean shouldthread){
-        if(shouldthread){
-            (thread = new Thread(){
+    public void calculateProbabilities(final boolean outputToFile, boolean shouldthread) {
+        if (shouldthread) {
+            (thread = new Thread() {
                 @Override
-                public void run(){
-                    calculateProbabilities();
+                public void run() {
+                    calculateProbabilities(outputToFile);
                 }
             }).start();
-        }else{
-            calculateProbabilities();
+        } else {
+            calculateProbabilities(outputToFile);
         }
     }
-    
-    public void calculateProbabilities() {
+
+    public void calculateProbabilities(boolean outputToFile) {
         outerNumber = 0;
         didFinish = false;
         running = true;
@@ -51,6 +51,11 @@ public class ProbabilityCalculator {
         this.combosTriedInSession = 0;
         combiner.setNumDie(numDie);
         combiner.calculateBetweenCombos();
+
+        PrintWriter writer = null;
+        if (outputToFile) {
+            writer = FileManager.openFileForWriting(FileManager.getProbabilityPath(numDie, d8));
+        }
 
         //Consider all possibilities for each number
         int[] nums = new int[combiner.getNumDie()];
@@ -69,21 +74,28 @@ public class ProbabilityCalculator {
             combiner.calculatePrimes(nums);
             this.combosTriedInSession++;
             ArrayList<Integer> alreadyIncrementedPrimeLevels = new ArrayList<>();
+
+            if (outputToFile) {
+                writer.print(Arrays.toString(nums));
+            }
+
             //Place results into primes
-            for (Integer prime : combiner.getCurrentPrimes()) {
-                int level = combiner.getLevelForPrime(prime);
-                //Only increment the prime level if it is not already added
-                if (!alreadyIncrementedPrimeLevels.contains(level)) {
-                    alreadyIncrementedPrimeLevels.add(level);
-                    Integer numOfLevel = levels.get(level);
-                    if (numOfLevel == null) {
-                        numOfLevel = 1;
-                    } else {
-                        numOfLevel++;
-                    }
-                    levels.put(level, numOfLevel);
+            HashMap<Integer, String> primes = combiner.getCurrentLevels();
+            for (Integer level : primes.keySet()) {
+
+                Integer numOfLevel = levels.get(level);
+                if (numOfLevel == null) {
+                    numOfLevel = 1;
+                } else {
+                    numOfLevel++;
+                }
+                levels.put(level, numOfLevel);
+
+                if (outputToFile) {
+                    writer.print(" " + level);
                 }
             }
+
             //Increment
             for (int i = nums.length - 1; i >= 0; i--) {
                 if (nums[i] == maxRoll) {
@@ -95,20 +107,27 @@ public class ProbabilityCalculator {
                     }
                     nums[i] = 1;
                 } else {
-                    if(i==0){
-                        outerNumber=nums[0];
+                    if (i == 0) {
+                        outerNumber = nums[0];
                     }
                     nums[i]++;
                     break;
                 }
             }
+
+            if (outputToFile && !done) {
+                writer.print("\n");
+            }
         }
 
-        this.timeToCalculate = System.currentTimeMillis()-timeToCalculate;
+        if (outputToFile) {
+            writer.close();
+        }
+
+        this.timeToCalculate = System.currentTimeMillis() - timeToCalculate;
         running = false;
         thread = null;
     }
-
 
     /**
      * Calculates the number of permutations possible with the current number of
@@ -127,40 +146,40 @@ public class ProbabilityCalculator {
     public double getCompletionPercentage() {
         return ((double) combosTriedInSession / this.rollPermutations) * 100;
     }
-    
-    public int getProgressTotal(){
+
+    public int getProgressTotal() {
         return this.determineRollPermutations();
     }
-    
-    public int getProgress(){
+
+    public int getProgress() {
         return this.combosTriedInSession;
     }
-    
-    public long getElapsedTime(){
-        if(running){
-            return System.currentTimeMillis()-this.timeToCalculate;
-        }else{
+
+    public long getElapsedTime() {
+        if (running) {
+            return System.currentTimeMillis() - this.timeToCalculate;
+        } else {
             return this.timeToCalculate;
         }
     }
-    
-    public boolean isRunning(){
+
+    public boolean isRunning() {
         return running;
     }
-    
-    public int getOuterNumber(){
+
+    public int getOuterNumber() {
         return outerNumber;
     }
-    
-    public HashMap<Integer,Integer> getPrimesByLevel(){
+
+    public HashMap<Integer, Integer> getPrimesByLevel() {
         return this.levels;
     }
-    
-    public void cancelCalculation(){
+
+    public void cancelCalculation() {
         running = false;
     }
-    
-    public boolean didFinish(){
+
+    public boolean didFinish() {
         return didFinish;
     }
 }

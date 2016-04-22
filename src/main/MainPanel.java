@@ -197,15 +197,13 @@ public class MainPanel extends javax.swing.JPanel {
         }
         
         //Find the effective spell level
-        int el = this.getEffectiveSpellLevel();
+        int effectiveLevel = this.getEffectiveSpellLevel();
         
         //See if any of the primes allow this to happen
-        ArrayList<Integer> currentPrimes = combiner.getCurrentPrimes();
-        ArrayList<String> currentPrimeEq = combiner.getCurrentPrimeEq();
+        HashMap<Integer,String> currentPrimes = combiner.getCurrentLevels();
         for(int i=0; i<currentPrimes.size();i++){
-            int primeLevel = combiner.getLevelForPrime(currentPrimes.get(i));
-            if(primeLevel == el){
-                succeedSpell(currentPrimeEq.get(i),currentPrimes.get(i));
+            if(currentPrimes.containsKey(effectiveLevel)){
+                succeedSpell(currentPrimes.get(effectiveLevel),combiner.getCurrentPrimes().get(effectiveLevel));
                 return;
             }
         }

@@ -2,6 +2,7 @@ package main;
 
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Set;
 import java.util.logging.Level;
@@ -17,6 +18,7 @@ import javax.script.ScriptException;
 public class Combiner {
     
     final static int[] PRIMES = {3, 5, 7, 11, 13, 17, 19, 23, 29, 31, 37, 41, 43, 47, 53, 59, 61, 67, 71, 73, 79, 83, 89, 97, 101, 103, 107};
+    final static int NUM_LEVELS = PRIMES.length/3;
     final static int NOT_ENOUGH_ROLLS_ERROR = 1;
     final static int NO_TEXT_ENTERED_ERROR = 2;
     final static int INVALID_TEXT_ERROR = 3;
@@ -25,8 +27,10 @@ public class Combiner {
     
     private int error;
     
-    private ArrayList<Integer> currentPrimes;
-    private ArrayList<String> currentPrimeEq;
+//    private ArrayList<Integer> currentPrimes;
+//    private ArrayList<String> currentPrimeEq;
+    private final HashMap<Integer,String> currentLevels;
+    private final HashMap<Integer,Integer> currentPrimes;
     
     private Set<String[]> betweenCombos;
     private int comboLength = 0;
@@ -34,8 +38,8 @@ public class Combiner {
     private int numDie = 2;
     
     public Combiner(){
-        currentPrimes = new ArrayList<>();
-        currentPrimeEq = new ArrayList<>();
+        currentLevels = new HashMap<>();
+        currentPrimes = new HashMap<>();
     }
     
     public int getError(){
@@ -46,13 +50,10 @@ public class Combiner {
         numDie = die;
     }
 
-    public ArrayList<Integer> getCurrentPrimes() {
-        return currentPrimes;
+    public HashMap<Integer,String> getCurrentLevels() {
+        return currentLevels;
     }
 
-    public ArrayList<String> getCurrentPrimeEq() {
-        return currentPrimeEq;
-    }
     
     /**
      * Use the already calculated betweenCombos with the given input to find all
@@ -62,11 +63,7 @@ public class Combiner {
      * @return True if primes where successfully calculated.
      */
     public boolean calculatePrimes(String text, boolean allowD8) {
-        //Clear the storage
-        this.currentPrimeEq.clear();
-        this.currentPrimes.clear();
-
-
+        
         if (text.isEmpty()) {
             error = Combiner.NO_TEXT_ENTERED_ERROR;
             return false;
@@ -95,6 +92,10 @@ public class Combiner {
     }
     
     public boolean calculatePrimes(int[] rolls){
+        //Clear the storage
+        this.currentLevels.clear();
+        this.currentPrimes.clear();
+        
         //Make sure there is a correct number of rolls
         if (rolls.length != comboLength - 1) {
             error = Combiner.NOT_ENOUGH_ROLLS_ERROR;
@@ -104,13 +105,17 @@ public class Combiner {
         //Place the rolls through each combo and compute     
         for (String[] combo : betweenCombos) {
             this.evalExpression(combo, rolls);
+            //If all levels have been covered, might as well quit
+            if(this.currentLevels.keySet().size() == NUM_LEVELS){
+                break;
+            }
         }
         
         return true;
     }
     
     
-    public void evalExpression(String[] betweens, int[] values) {
+    private void evalExpression(String[] betweens, int[] values) {
         //Generate the expression
         String exp = "";
         if (betweens[0] != null) {
@@ -126,12 +131,15 @@ public class Combiner {
         //Evaluate
         int result = this.evalExpression(exp);
         if (this.isAValidPrime(result)) {
-            this.currentPrimes.add(result);
-            this.currentPrimeEq.add(exp);
+            int level = this.getLevelForPrime(result);
+            if(!currentLevels.containsKey(level)){
+                this.currentLevels.put(level, exp);
+                this.currentPrimes.put(level, result);
+            }
         }
     }
     
-    public int evalExpression(String foo) {
+    private int evalExpression(String foo) {
         //Calculate the possible combinations
         ScriptEngineManager mgr = new ScriptEngineManager();
         ScriptEngine engine = mgr.getEngineByName("JavaScript");
@@ -298,5 +306,11 @@ public class Combiner {
     public int getNumBetweens(){
         return this.betweenCombos.size();
     }
+
+    public HashMap<Integer, Integer> getCurrentPrimes() {
+        return currentPrimes;
+    }
+    
+    
     
 }
