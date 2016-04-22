@@ -27,33 +27,15 @@ public class Combiner {
     
     private int error;
     
-//    private ArrayList<Integer> currentPrimes;
-//    private ArrayList<String> currentPrimeEq;
-    private final HashMap<Integer,String> currentLevels;
-    private final HashMap<Integer,Integer> currentPrimes;
-    
     private Set<String[]> betweenCombos;
     private int comboLength = 0;
     
     private int numDie = 2;
     
     public Combiner(){
-        currentLevels = new HashMap<>();
-        currentPrimes = new HashMap<>();
+        
     }
     
-    public int getError(){
-        return error;
-    }
-    
-    public void setNumDie(int die){
-        numDie = die;
-    }
-
-    public HashMap<Integer,String> getCurrentLevels() {
-        return currentLevels;
-    }
-
     
     /**
      * Use the already calculated betweenCombos with the given input to find all
@@ -62,11 +44,11 @@ public class Combiner {
      * @param allowD8 Whether or not d8s are allowed.
      * @return True if primes where successfully calculated.
      */
-    public boolean calculatePrimes(String text, boolean allowD8) {
+    public CombinationData calculatePrimes(String text, boolean allowD8) {
         
         if (text.isEmpty()) {
             error = Combiner.NO_TEXT_ENTERED_ERROR;
-            return false;
+            return null;
         }
 
         //Parse the string
@@ -74,7 +56,7 @@ public class Combiner {
 
         if (rollsList.length == 0) {
             error = Combiner.INVALID_TEXT_ERROR;
-            return false;
+            return null;
         }
 
         int[] rolls = new int[rollsList.length];
@@ -84,38 +66,37 @@ public class Combiner {
             //Make sure the roll is within range
             if(allowD8 && rolls[i]>8 || !allowD8 && rolls[i] > 6){
                 error = Combiner.DIE_VALUE_OUT_OF_BOUNDS;
-                return false;
+                return null;
             }
         }
         
-        return calculatePrimes(rolls);
+        return calculatePrimes(rolls,allowD8);
     }
     
-    public boolean calculatePrimes(int[] rolls){
-        //Clear the storage
-        this.currentLevels.clear();
-        this.currentPrimes.clear();
+    public CombinationData calculatePrimes(int[] rolls, boolean allowD8){
+        //Create a new data object
+        CombinationData data = new CombinationData();
         
         //Make sure there is a correct number of rolls
         if (rolls.length != comboLength - 1) {
             error = Combiner.NOT_ENOUGH_ROLLS_ERROR;
-            return false;
+            return null;
         }
 
         //Place the rolls through each combo and compute     
         for (String[] combo : betweenCombos) {
-            this.evalExpression(combo, rolls);
+            this.evalExpression(combo, rolls,data);
             //If all levels have been covered, might as well quit
-            if(this.currentLevels.keySet().size() == NUM_LEVELS){
+            if(data.currentLevels.keySet().size() == NUM_LEVELS){
                 break;
             }
         }
         
-        return true;
+        return data;
     }
     
     
-    private void evalExpression(String[] betweens, int[] values) {
+    private void evalExpression(String[] betweens, int[] values, CombinationData data) {
         //Generate the expression
         String exp = "";
         if (betweens[0] != null) {
@@ -132,9 +113,9 @@ public class Combiner {
         int result = this.evalExpression(exp);
         if (this.isAValidPrime(result)) {
             int level = this.getLevelForPrime(result);
-            if(!currentLevels.containsKey(level)){
-                this.currentLevels.put(level, exp);
-                this.currentPrimes.put(level, result);
+            if(!data.currentLevels.containsKey(level)){
+                data.currentLevels.put(level, exp);
+                data.currentPrimes.put(level, result);
             }
         }
     }
@@ -306,11 +287,13 @@ public class Combiner {
     public int getNumBetweens(){
         return this.betweenCombos.size();
     }
-
-    public HashMap<Integer, Integer> getCurrentPrimes() {
-        return currentPrimes;
+    
+    public int getError(){
+        return error;
     }
     
-    
-    
+    public void setNumDie(int die){
+        numDie = die;
+    }
+
 }

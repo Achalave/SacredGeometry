@@ -11,24 +11,25 @@ import java.util.logging.Logger;
 //@author Michael Haertling
 public class FileManager {
 
-    public static final String COMBINATION_PATH = "combinations/";
+    public static final String COMBINATION_PATH = "data/combinations/";
+    public static final String METAMAGIC_PATH = "data/metamagic/";
+    public static final String SPELLS_PATH = "data/spells/";
 
     public static PrintWriter openFileForWriting(String path) {
-
         try {
             File file = new File(path);
-            
+
             //Check if the directories are made
             File dir = file.getParentFile();
-            if(!dir.exists()){
+            if (!dir.exists()) {
                 dir.mkdirs();
             }
-            
+
             //Make sure the file is made
             if (!file.exists()) {
                 file.createNewFile();
             }
-            
+
             return new PrintWriter(file);
         } catch (FileNotFoundException ex) {
             Logger.getLogger(FileManager.class.getName()).log(Level.SEVERE, null, ex);
@@ -64,4 +65,37 @@ public class FileManager {
         return path;
     }
 
+    public static String getProbabilityPathIncomplete(int numDie, boolean d8){
+        String path = COMBINATION_PATH + "@D";
+        if (d8) {
+            path += 8;
+        } else {
+            path += 6;
+        }
+        path += "-" + numDie+"/";
+        return path;
+    }
+    
+    public static boolean makeDirectories(String path){
+        File file = new File(path);
+        return file.mkdirs();
+    }
+    
+    public static boolean deleteFile(String path) {
+        File file = new File(path);
+        return file.delete();
+    }
+    
+    public static String[] getFiles(String path){
+        File file = new File(path);
+        if(file.isFile() || !file.exists()){
+            return null;
+        }
+        return file.list();
+    }
+    
+    public static void renameFile(String path, String pathnew){
+        File file = new File(path);
+        file.renameTo(new File(pathnew));
+    }
 }

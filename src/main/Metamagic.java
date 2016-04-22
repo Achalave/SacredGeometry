@@ -39,4 +39,9 @@ public class Metamagic implements Comparable<Metamagic> {
         return hash;
     }
 
+    @Override
+    public String toString(){
+        return name+"@"+levelInc;
+    }
+    
 }

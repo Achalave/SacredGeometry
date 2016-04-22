@@ -6,13 +6,17 @@
 package main;
 
 import java.awt.Color;
+import java.awt.Component;
 import java.awt.Container;
 import java.awt.event.ActionEvent;
 import java.awt.event.ActionListener;
 import java.awt.event.ItemEvent;
 import java.awt.event.ItemListener;
+import java.io.PrintWriter;
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.HashMap;
+import java.util.Scanner;
 import javax.swing.BoxLayout;
 import javax.swing.DefaultListModel;
 import javax.swing.JCheckBox;
@@ -50,12 +54,13 @@ public class MainPanel extends javax.swing.JPanel {
 
     DefaultListModel spellListModel;
     
-    String rolls = "";
+    ArrayList<Integer> rolls;
     
     AddSpellPanel addSpell;
     AddMetaPanel addMeta;
     
     boolean d8 = false;
+    JCheckBox lastSelectedMeta;
     
     public static void main(String[] args){
         JFrame frame = new JFrame();
@@ -67,7 +72,13 @@ public class MainPanel extends javax.swing.JPanel {
         frame.setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
     }
     
+    /**
+     * Generates the menu bar object used by the frame for this application.
+     * @return One JMenuBar.
+     */
     private JMenuBar generateMenuBar(){
+        rolls = new ArrayList<>();
+        
         final Container container = this;
         JMenuBar menuBar = new JMenuBar();
         
@@ -140,14 +151,66 @@ public class MainPanel extends javax.swing.JPanel {
 
     }
     
+    /**
+     * Loads all the spells stored in the spells file
+     */
     private void loadSpells() {
-
+        try (Scanner scan = FileManager.openFileForReading(FileManager.SPELLS_PATH)) {
+            if(scan == null){
+                return;
+            }
+            
+            String[] line;
+            while(scan.hasNext()){
+                line = scan.nextLine().split("@");
+                this.addSpell(line[0], Integer.parseInt(line[1]));
+            }
+        }
     }
 
+    /**
+     * Loads all the metamagic stored in the metamagic file
+     */
     private void loadMetamagic() {
-
+        try (Scanner scan = FileManager.openFileForReading(FileManager.METAMAGIC_PATH)) {
+            if(scan == null){
+                return;
+            }
+            
+            String[] line;
+            while(scan.hasNext()){
+                line = scan.nextLine().split("@");
+                this.addMetamagic(line[0], Integer.parseInt(line[1]));
+            }
+        }
     }
 
+    private void saveSpells(){
+        //Aggregate all the spells
+        ArrayList<Spell> sp = new ArrayList(spells.values());
+        Collections.sort(sp);
+        //Save the spells to their file
+        FileManager.deleteFile(FileManager.SPELLS_PATH);
+        try (PrintWriter write = FileManager.openFileForWriting(FileManager.SPELLS_PATH)) {
+            for(Spell s:sp){
+                write.println(s);
+            }
+        }
+    }
+    
+    private void saveMetamagic(){
+        //Aggregate all the metamagic
+        ArrayList<Metamagic> mm = new ArrayList(metamagic.values());
+        Collections.sort(mm);
+        //Save the metamagic to their file
+        FileManager.deleteFile(FileManager.METAMAGIC_PATH);
+        try (PrintWriter write = FileManager.openFileForWriting(FileManager.METAMAGIC_PATH)) {
+            for(Metamagic m:mm){
+                write.println(m);
+            }
+        }
+    }
+    
     private void setupForRollsError() {
         //Store the previous text
         this.tempRollsStorage = rollTextField.getText();
@@ -178,7 +241,14 @@ public class MainPanel extends javax.swing.JPanel {
     
     public void castSpell(){
         //Find the primes that can be created
-        if(!combiner.calculatePrimes(rolls,d8)){
+        int[] rollsA = new int[rolls.size()];
+        for(int i=0; i<rolls.size();i++){
+            rollsA[i] = rolls.get(i);
+        }
+        
+        CombinationData data = combiner.calculatePrimes(rollsA, d8);
+        
+        if(data == null){
             //If it failded to calculate the primes check the error message
             switch(combiner.getError()){
                 case Combiner.INVALID_TEXT_ERROR:
@@ -200,10 +270,10 @@ public class MainPanel extends javax.swing.JPanel {
         int effectiveLevel = this.getEffectiveSpellLevel();
         
         //See if any of the primes allow this to happen
-        HashMap<Integer,String> currentPrimes = combiner.getCurrentLevels();
+        HashMap<Integer,String> currentPrimes = data.getCurrentLevels();
         for(int i=0; i<currentPrimes.size();i++){
             if(currentPrimes.containsKey(effectiveLevel)){
-                succeedSpell(currentPrimes.get(effectiveLevel),combiner.getCurrentPrimes().get(effectiveLevel));
+                succeedSpell(currentPrimes.get(effectiveLevel),data.getCurrentPrimes().get(effectiveLevel));
                 return;
             }
         }
@@ -213,26 +283,28 @@ public class MainPanel extends javax.swing.JPanel {
     private void succeedSpell(String equation, int prime){
         String text = spellCastText.getText()+"\n\n";
         text += "Using the equation "+equation+" = "+prime;
+        spellCastText.setText(text);
     }
     
     private void failSpell(){
         String text = spellCastText.getText()+"\n\n";
         text += "No adequate prime could be generated to cast this spell.";
+        spellCastText.setText(text);
     }
     
-    private void updateTextForEffectiveLevel(){
+    private void updatePerliminaryText(){
         int el = this.getEffectiveSpellLevel();
         if(el < 0){
             spellCastText.setText("");
             return;
         }
-        spellCastText.setText("The effective level to cast this spell is "+el);
+        String text = "The effective level to cast this spell is "+el;
+        spellCastText.setText(text);
     }
     
     public int getEffectiveSpellLevel(){
         String s = this.spellsList.getSelectedValue();
         Spell spell = spells.get(s);
-        System.out.println(this.spellsList.getSelectedValue());
         if(spell == null){
             return -1;
         }
@@ -250,7 +322,7 @@ public class MainPanel extends javax.swing.JPanel {
 
         //Create the spell object
         final Metamagic meta = new Metamagic(level, name);
-        this.metamagic.put(name, meta);
+        this.metamagic.put(label, meta);
 
         //Create the checkbox
         final JCheckBox b = new JCheckBox();
@@ -259,12 +331,13 @@ public class MainPanel extends javax.swing.JPanel {
         b.addItemListener(new ItemListener() {
             @Override
             public void itemStateChanged(ItemEvent ie) {
+                lastSelectedMeta = b;
                 if (ie.getStateChange() == ItemEvent.DESELECTED) {
                     selectedMeta.remove(meta);
                 } else if (ie.getStateChange() == ItemEvent.SELECTED) {
                     selectedMeta.add(meta);
                 }
-                updateTextForEffectiveLevel();
+                updatePerliminaryText();
             }
 
         });
@@ -281,6 +354,23 @@ public class MainPanel extends javax.swing.JPanel {
         final Spell spell = new Spell(level, name);
         this.spells.put(label, spell);
         this.spellListModel.addElement(label);
+    }
+    
+    private void removeSpell(){
+        String s = this.spellsList.getSelectedValue();
+        this.spells.remove(s);
+        this.spellListModel.removeElementAt(this.spellsList.getSelectedIndex());
+        this.saveSpells();
+    }
+    
+    private void removeMeta(){
+        if(this.lastSelectedMeta != null){
+            this.metamagicPanel.remove(lastSelectedMeta);
+            this.metamagic.remove(lastSelectedMeta.getText());
+            this.metamagicPanel.revalidate();
+            this.metamagicPanel.repaint();
+            this.saveMetamagic();
+        }
     }
     /**
      * This method is called from within the constructor to initialize the form.
@@ -313,11 +403,11 @@ public class MainPanel extends javax.swing.JPanel {
         metamagicPanel.setLayout(metamagicPanelLayout);
         metamagicPanelLayout.setHorizontalGroup(
             metamagicPanelLayout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
-            .addGap(0, 207, Short.MAX_VALUE)
+            .addGap(0, 241, Short.MAX_VALUE)
         );
         metamagicPanelLayout.setVerticalGroup(
             metamagicPanelLayout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
-            .addGap(0, 353, Short.MAX_VALUE)
+            .addGap(0, 429, Short.MAX_VALUE)
         );
 
         jScrollPane1.setViewportView(metamagicPanel);
@@ -354,6 +444,11 @@ public class MainPanel extends javax.swing.JPanel {
         });
 
         deleteSpellButton.setText("Delete Spell");
+        deleteSpellButton.addActionListener(new java.awt.event.ActionListener() {
+            public void actionPerformed(java.awt.event.ActionEvent evt) {
+                deleteSpellButtonActionPerformed(evt);
+            }
+        });
 
         addMetaButton.setText("Add Metamagic");
         addMetaButton.addActionListener(new java.awt.event.ActionListener() {
@@ -363,6 +458,11 @@ public class MainPanel extends javax.swing.JPanel {
         });
 
         deleteMetaButton.setText("Delete Metamagic");
+        deleteMetaButton.addActionListener(new java.awt.event.ActionListener() {
+            public void actionPerformed(java.awt.event.ActionEvent evt) {
+                deleteMetaButtonActionPerformed(evt);
+            }
+        });
 
         submitRollButton.setText("Submit Roll");
         submitRollButton.addActionListener(new java.awt.event.ActionListener() {
@@ -371,6 +471,7 @@ public class MainPanel extends javax.swing.JPanel {
             }
         });
 
+        dieCounter.setModel(new javax.swing.SpinnerNumberModel(2, 2, null, 1));
         dieCounter.addChangeListener(new javax.swing.event.ChangeListener() {
             public void stateChanged(javax.swing.event.ChangeEvent evt) {
                 dieCounterStateChanged(evt);
@@ -387,8 +488,8 @@ public class MainPanel extends javax.swing.JPanel {
                 .addContainerGap()
                 .addGroup(layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
                     .addComponent(jLabel1, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, Short.MAX_VALUE)
-                    .addComponent(jScrollPane3, javax.swing.GroupLayout.Alignment.TRAILING, javax.swing.GroupLayout.PREFERRED_SIZE, 0, Short.MAX_VALUE)
-                    .addComponent(deleteSpellButton, javax.swing.GroupLayout.DEFAULT_SIZE, 211, Short.MAX_VALUE)
+                    .addComponent(jScrollPane3, javax.swing.GroupLayout.Alignment.TRAILING, javax.swing.GroupLayout.DEFAULT_SIZE, 246, Short.MAX_VALUE)
+                    .addComponent(deleteSpellButton, javax.swing.GroupLayout.DEFAULT_SIZE, 246, Short.MAX_VALUE)
                     .addComponent(addSpellButton, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, Short.MAX_VALUE))
                 .addGroup(layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
                     .addGroup(javax.swing.GroupLayout.Alignment.TRAILING, layout.createSequentialGroup()
@@ -398,24 +499,24 @@ public class MainPanel extends javax.swing.JPanel {
                                 .addComponent(jLabel2, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, Short.MAX_VALUE))
                             .addGroup(layout.createSequentialGroup()
                                 .addGap(4, 4, 4)
-                                .addComponent(jScrollPane1, javax.swing.GroupLayout.PREFERRED_SIZE, 0, Short.MAX_VALUE)))
+                                .addComponent(jScrollPane1, javax.swing.GroupLayout.DEFAULT_SIZE, 243, Short.MAX_VALUE)))
                         .addGap(6, 6, 6))
                     .addGroup(javax.swing.GroupLayout.Alignment.TRAILING, layout.createSequentialGroup()
                         .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED)
                         .addGroup(layout.createParallelGroup(javax.swing.GroupLayout.Alignment.TRAILING)
-                            .addComponent(deleteMetaButton, javax.swing.GroupLayout.DEFAULT_SIZE, 207, Short.MAX_VALUE)
+                            .addComponent(deleteMetaButton, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, Short.MAX_VALUE)
                             .addComponent(addMetaButton, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, Short.MAX_VALUE))
                         .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED)))
                 .addGroup(layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
                     .addComponent(jLabel3, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, Short.MAX_VALUE)
                     .addGroup(layout.createSequentialGroup()
                         .addGap(1, 1, 1)
-                        .addComponent(jScrollPane2, javax.swing.GroupLayout.DEFAULT_SIZE, 212, Short.MAX_VALUE))
+                        .addComponent(jScrollPane2, javax.swing.GroupLayout.DEFAULT_SIZE, 246, Short.MAX_VALUE))
                     .addComponent(submitRollButton, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, Short.MAX_VALUE)
                     .addGroup(layout.createSequentialGroup()
                         .addComponent(jLabel4)
                         .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED)
-                        .addComponent(dieCounter, javax.swing.GroupLayout.PREFERRED_SIZE, 37, javax.swing.GroupLayout.PREFERRED_SIZE)
+                        .addComponent(dieCounter, javax.swing.GroupLayout.PREFERRED_SIZE, 35, javax.swing.GroupLayout.PREFERRED_SIZE)
                         .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED)
                         .addComponent(rollTextField)))
                 .addContainerGap())
@@ -430,17 +531,15 @@ public class MainPanel extends javax.swing.JPanel {
                     .addComponent(jLabel2))
                 .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED)
                 .addGroup(layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
-                    .addComponent(jScrollPane1, javax.swing.GroupLayout.DEFAULT_SIZE, 355, Short.MAX_VALUE)
+                    .addComponent(jScrollPane1, javax.swing.GroupLayout.DEFAULT_SIZE, 431, Short.MAX_VALUE)
                     .addComponent(jScrollPane2)
                     .addComponent(jScrollPane3))
                 .addGap(15, 15, 15)
                 .addGroup(layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
-                    .addGroup(layout.createSequentialGroup()
-                        .addGroup(layout.createParallelGroup(javax.swing.GroupLayout.Alignment.BASELINE)
-                            .addComponent(jLabel4)
-                            .addComponent(dieCounter, javax.swing.GroupLayout.PREFERRED_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.PREFERRED_SIZE)
-                            .addComponent(rollTextField, javax.swing.GroupLayout.PREFERRED_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.PREFERRED_SIZE))
-                        .addGap(50, 50, 50))
+                    .addGroup(layout.createParallelGroup(javax.swing.GroupLayout.Alignment.BASELINE)
+                        .addComponent(jLabel4)
+                        .addComponent(dieCounter, javax.swing.GroupLayout.PREFERRED_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.PREFERRED_SIZE)
+                        .addComponent(rollTextField, javax.swing.GroupLayout.PREFERRED_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.PREFERRED_SIZE))
                     .addGroup(layout.createSequentialGroup()
                         .addGroup(layout.createParallelGroup(javax.swing.GroupLayout.Alignment.BASELINE)
                             .addComponent(addSpellButton)
@@ -449,8 +548,8 @@ public class MainPanel extends javax.swing.JPanel {
                         .addGroup(layout.createParallelGroup(javax.swing.GroupLayout.Alignment.BASELINE)
                             .addComponent(deleteSpellButton)
                             .addComponent(deleteMetaButton)
-                            .addComponent(submitRollButton))
-                        .addGap(0, 0, 0))))
+                            .addComponent(submitRollButton))))
+                .addGap(13, 13, 13))
         );
     }// </editor-fold>//GEN-END:initComponents
 
@@ -464,8 +563,8 @@ public class MainPanel extends javax.swing.JPanel {
             return;
         }
                 
-        name = addMeta.getName();
-        level = addMeta.getSpellLevel();
+        name = addMeta.getMetaName();
+        level = addMeta.getMetaLevel();
         
         if(name == null || name.isEmpty()){
             JOptionPane.showMessageDialog(this, "You must provide a metamagic name.");
@@ -476,10 +575,12 @@ public class MainPanel extends javax.swing.JPanel {
         }
         
         this.addMetamagic(name, level);
+        
+        this.saveMetamagic();
     }//GEN-LAST:event_addMetaButtonActionPerformed
 
     private void spellsListValueChanged(javax.swing.event.ListSelectionEvent evt) {//GEN-FIRST:event_spellsListValueChanged
-        updateTextForEffectiveLevel();
+        updatePerliminaryText();
     }//GEN-LAST:event_spellsListValueChanged
 
     private void calcProbButtonActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_calcProbButtonActionPerformed
@@ -509,7 +610,7 @@ public class MainPanel extends javax.swing.JPanel {
             return;
         }
         
-        name = addSpell.getName();
+        name = addSpell.getSpellName();
         level = addSpell.getSpellLevel();
 
         if(name == null || name.isEmpty()){
@@ -521,6 +622,8 @@ public class MainPanel extends javax.swing.JPanel {
         }
         
         this.addSpell(name, level);
+        
+        this.saveSpells();
     }//GEN-LAST:event_addSpellButtonActionPerformed
 
     private void submitRollButtonActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_submitRollButtonActionPerformed
@@ -535,6 +638,14 @@ public class MainPanel extends javax.swing.JPanel {
         //Calculate the primes
         castSpell();
     }//GEN-LAST:event_submitRollButtonActionPerformed
+
+    private void deleteSpellButtonActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_deleteSpellButtonActionPerformed
+        removeSpell();
+    }//GEN-LAST:event_deleteSpellButtonActionPerformed
+
+    private void deleteMetaButtonActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_deleteMetaButtonActionPerformed
+        removeMeta();
+    }//GEN-LAST:event_deleteMetaButtonActionPerformed
 
 
 

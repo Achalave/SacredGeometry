@@ -1,9 +1,9 @@
-
 package main;
 
 import java.awt.Component;
 import java.awt.event.ActionEvent;
 import java.awt.event.ActionListener;
+import java.util.Arrays;
 import java.util.HashMap;
 import javax.swing.JFrame;
 import javax.swing.Timer;
@@ -20,9 +20,10 @@ public class ProbabilityPanel extends javax.swing.JPanel {
     JFrame frame;
     ProbabilityCalculator calc;
     Timer progressTimer;
-    
+
     private int timeEstimate;
     private long lastTimeEstimateUpdate;
+    private long timeToCalculate;
 
     /**
      * Creates new form ProbabilityPanel
@@ -33,7 +34,8 @@ public class ProbabilityPanel extends javax.swing.JPanel {
         progressTimer = new Timer(PROGRESS_UPDATE_SPEED, new ActionListener() {
             @Override
             public void actionPerformed(ActionEvent ae) {
-                progressBar.setValue(calc.getProgress());
+
+                progressBar.setValue(calc.getCumulativeProgress());
                 updateText();
                 if (!calc.isRunning()) {
                     progressTimer.stop();
@@ -46,6 +48,7 @@ public class ProbabilityPanel extends javax.swing.JPanel {
 
     /**
      * Displays this panel in a new frame.
+     *
      * @param c The component to center this window around.
      */
     public void displaySelf(Component c) {
@@ -59,30 +62,33 @@ public class ProbabilityPanel extends javax.swing.JPanel {
     }
 
     /**
-     * This is called periodically by the progressTimer to display statistics
-     * as the calculations are being done.
+     * This is called periodically by the progressTimer to display statistics as
+     * the calculations are being done.
      */
     private void updateText() {
         String text = "";
-        double et = calc.getElapsedTime() / 1000.0;
+        double et = this.getElapsedTime() / 1000.0;
         updateTimeEstimate();
         text += "Time Elapsed: " + et;
-        text += "\nEstimated Time: "+timeEstimate;
-        text += "\nRoll Combinations Tried: " + calc.getProgress();
-        text += "\nOuter Die Number: " + calc.getOuterNumber();
+        text += "\nEstimated Time: " + timeEstimate;
+        text += "\nRoll Combinations Tried: " + Arrays.toString(calc.getProgress());
         this.jTextArea1.setText(text);
     }
 
     /**
      * This is called by updateText to periodically update the time estimate.
      */
-    private void updateTimeEstimate(){
-        if(System.currentTimeMillis()-this.lastTimeEstimateUpdate>TIME_ESTIMATE_UPDATE_SPEED){
-            this.timeEstimate = (int)((calc.getElapsedTime()*calc.getProgressTotal()/1000.0)/calc.getProgress());
+    private void updateTimeEstimate() {
+        if (System.currentTimeMillis() - this.lastTimeEstimateUpdate > TIME_ESTIMATE_UPDATE_SPEED) {
+            this.timeEstimate = (int) ((this.getElapsedTime() * calc.getProgressTotal() / 1000.0) / calc.getCumulativeProgress());
             this.lastTimeEstimateUpdate = System.currentTimeMillis();
         }
     }
-    
+
+    private long getElapsedTime() {
+        return System.currentTimeMillis() - this.timeToCalculate;
+    }
+
     /**
      * This is called by the progressTimer when the calculations have finished.
      */
@@ -93,15 +99,30 @@ public class ProbabilityPanel extends javax.swing.JPanel {
         if (calc.didFinish()) {
             //Set the final text
             String text = "";
-            text += "Total Computation Time: " + calc.getElapsedTime() / 1000.0;
-            text += "\nTotal Toll Combinations: " + calc.getProgressTotal();
+            text += "Total Computation Time: " + this.getElapsedTime() / 1000.0;
+            text += "\nTotal Roll Combinations: " + calc.getProgressTotal();
             text += "\n+";
             text += "\nPrimes By Level";
             text += "\n+";
-            HashMap<Integer, Integer> levels = calc.getPrimesByLevel();
-            for (Integer key : levels.keySet()) {
-                text += "\nThere are " + levels.get(key) + " rolls for level " + key;
-                text += "\nLikelihood: " + ((double) levels.get(key) / calc.combosTriedInSession) * 100 + "\n";
+            HashMap<Integer, Integer>[] levels = calc.getPrimesByLevel();
+            for (int lv = 1; lv < Combiner.NUM_LEVELS; lv++) {
+                //Count the possibilities for this level from each thread
+                int total = 0;
+                for (HashMap<Integer, Integer> level : levels) {
+                    Integer temp = level.get(lv);
+                    if (temp != null) {
+                        total += temp;
+                    }
+                }
+
+                //No need to print if there is no possibilities
+                if (total == 0) {
+                    continue;
+                }
+
+                text += "\nThere are " + total + " rolls for level " + lv;
+                text += "\nLikelihood: " + ((double) total / calc.determineRollPermutations()) * 100 + "\n";
+                this.calc.finalizeFile();
             }
             this.jTextArea1.setText(text);
         } else {
@@ -112,15 +133,20 @@ public class ProbabilityPanel extends javax.swing.JPanel {
     /**
      * Begins the calculation based on the current settings.
      */
-    private void calculate(){
+    private void calculate() {
+        this.timeToCalculate = System.currentTimeMillis();
         beginCalculationButton.setEnabled(false);
         this.calcelCaclulationButton.setEnabled(true);
         calc.setNumDie((int) this.dieSpinner.getValue(), this.d8Checkbox.isSelected());
         progressBar.setMaximum(calc.getProgressTotal());
-        calc.calculateProbabilities(true,true);
+        calc.calculateProbabilities(this.outputToFileCheckbox.isSelected(), this.threadCheckbox.isSelected());
         progressTimer.start();
     }
-    
+
+    public void loadCalculation() {
+
+    }
+
     /**
      * This method is called from within the constructor to initialize the form.
      * WARNING: Do NOT modify this code. The content of this method is always
@@ -176,6 +202,11 @@ public class ProbabilityPanel extends javax.swing.JPanel {
         outputToFileCheckbox.setText("Output To File");
 
         loadCalculationButton.setText("Load Calculation");
+        loadCalculationButton.addActionListener(new java.awt.event.ActionListener() {
+            public void actionPerformed(java.awt.event.ActionEvent evt) {
+                loadCalculationButtonActionPerformed(evt);
+            }
+        });
 
         threadCheckbox.setText("Multi-thread");
 
@@ -241,6 +272,10 @@ public class ProbabilityPanel extends javax.swing.JPanel {
     private void calcelCaclulationButtonActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_calcelCaclulationButtonActionPerformed
         calc.cancelCalculation();
     }//GEN-LAST:event_calcelCaclulationButtonActionPerformed
+
+    private void loadCalculationButtonActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_loadCalculationButtonActionPerformed
+        loadCalculation();
+    }//GEN-LAST:event_loadCalculationButtonActionPerformed
 
 
     // Variables declaration - do not modify//GEN-BEGIN:variables

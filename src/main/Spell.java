@@ -36,4 +36,9 @@ public class Spell implements Comparable<Spell> {
         hash = 89 * hash + Objects.hashCode(this.name);
         return hash;
     }
+    
+    @Override
+    public String toString(){
+        return name+"@"+level;
+    }
 }
