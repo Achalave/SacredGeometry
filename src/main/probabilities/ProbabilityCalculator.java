@@ -1,10 +1,13 @@
-package main;
+package main.prob;
 
 import java.io.PrintWriter;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.HashMap;
 import java.util.Scanner;
+import main.CombinationData;
+import main.Combiner;
+import main.FileManager;
 
 //@author Michael Haertling
 public class ProbabilityCalculator {
@@ -21,6 +24,9 @@ public class ProbabilityCalculator {
     HashMap<Integer, Integer>[] levels;
     Thread[] threads;
     int[] combosTriedInSession;
+    int numThreadsRunning = 0;
+
+    String header;
 
     public void setNumDie(int numDie, boolean d8) {
         didFinish = false;
@@ -34,9 +40,11 @@ public class ProbabilityCalculator {
         shouldStop = false;
         final int maxRoll = this.getMaxRoll();
 
+        //Split into a thread for each leftmost value
         if (shouldthread) {
             //Instantiate one thread for each leftmost value
             int numThreads = maxRoll;
+            numThreadsRunning = numThreads;
             threads = new Thread[numThreads];
             combosTriedInSession = new int[numThreads];
             levels = new HashMap[numThreads];
@@ -46,6 +54,7 @@ public class ProbabilityCalculator {
                 levels[i] = new HashMap<>();
             }
 
+            //Start the threads one by one
             for (int i = 0; i < threads.length; i++) {
                 final int leftmost = i + 1;
                 (threads[i] = new Thread() {
@@ -53,16 +62,18 @@ public class ProbabilityCalculator {
                     public void run() {
                         PrintWriter write = null;
                         if (outputToFile) {
-                            String path = FileManager.getProbabilityPathIncomplete(numDie, d8);
-                            path += "/@" + leftmost;
-                            write = FileManager.openFileForWriting(path);
+//                            String path = FileManager.getProbabilityPathIncomplete(numDie, d8);
+//                            path += "/@" + leftmost;
+//                            write = FileManager.openFileForWriting(path);
                         }
                         calculateProbabilities(leftmost - 1, write, leftmost, leftmost);
                     }
                 }).start();
             }
-        } else {
+        } //Just do a single thread to detatch from caller
+        else {
             int numThreads = 1;
+            numThreadsRunning = numThreads;
             threads = new Thread[numThreads];
             combosTriedInSession = new int[numThreads];
             levels = new HashMap[numThreads];
@@ -77,7 +88,7 @@ public class ProbabilityCalculator {
                 public void run() {
                     PrintWriter write = null;
                     if (outputToFile) {
-                        write = FileManager.openFileForWriting(FileManager.getProbabilityPathIncomplete(numDie, d8));
+//                        write = FileManager.openFileForWriting(FileManager.getProbabilityPathIncomplete(numDie, d8));
                     }
                     combosTriedInSession = new int[1];
                     calculateProbabilities(0, write, 1, maxRoll);
@@ -88,7 +99,7 @@ public class ProbabilityCalculator {
     }
 
     private void calculateProbabilities(int index, PrintWriter writer, int startLeft, int endLeft) {
-        didFinish = true;
+        didFinish = false;
         combiner.setNumDie(numDie);
         combiner.calculateBetweenCombos();
 
@@ -96,7 +107,11 @@ public class ProbabilityCalculator {
         int[] nums = new int[combiner.getNumDie()];
         Arrays.fill(nums, 1);
         nums[0] = startLeft;
+        calculateProbabilitiesHelper(nums, index, writer, startLeft, endLeft);
+        threadFinished(Thread.currentThread());
+    }
 
+    private void calculateProbabilitiesHelper(int[] nums, int index, PrintWriter writer, int startLeft, int endLeft) {
         int maxRoll = this.getMaxRoll();
         boolean done = false;
         while (!done && !shouldStop) {
@@ -155,6 +170,19 @@ public class ProbabilityCalculator {
         }
     }
 
+    private void threadFinished(Thread t) {
+        this.numThreadsRunning--;
+        if (!this.isRunning()) {
+            generateOutcomeData();
+            didFinish = true;
+        }
+    }
+
+    private void generateOutcomeData(){
+        header = "";
+        
+    }
+    
     public int getMaxRoll() {
         int maxRoll = 6;
         if (d8) {
@@ -185,46 +213,11 @@ public class ProbabilityCalculator {
         return this.combosTriedInSession;
     }
 
-    public void finalizeFile() {
-        //Make sure the file has been finished
-        if (!didFinish) {
-            System.err.println("ProbabilityCalculator could not finalize file: unfinished");
-            return;
-        }
-
-        didFinish = false;
-        
-        String path = FileManager.getProbabilityPathIncomplete(numDie, d8);
-        String pathNew = FileManager.getProbabilityPath(numDie, d8);
-        String[] files = FileManager.getFiles(path);
-        //It was a silgle file
-        if (files == null) {
-            //Simply rename the file
-            FileManager.renameFile(path, pathNew);
-        } //It was multithreaded and has multiple files
-        else {
-            try (PrintWriter writer = FileManager.openFileForWriting(pathNew)) {
-                boolean lineOne = true;
-                //Combine all the files into one
-                for (String file : files) {
-                    try (Scanner scan = FileManager.openFileForReading(path+file)) {
-                        while(scan.hasNextLine()){
-                            if(lineOne){
-                                lineOne = false;
-                                writer.print(scan.nextLine());
-                            }else{
-                                writer.print("\n"+scan.nextLine());
-                            }
-                        }
-                    }
-                    FileManager.deleteFile(path+file);
-                }
-                FileManager.deleteFile(path);
-            }
-        }
+    public boolean isRunning() {
+        return this.numThreadsRunning > 0;
     }
 
-    public boolean isRunning() {
+    private boolean threadsRunning() {
         if (threads == null) {
             return false;
         }
@@ -245,7 +238,7 @@ public class ProbabilityCalculator {
     }
 
     public boolean didFinish() {
-        return didFinish && !isRunning();
+        return didFinish;
     }
 
     public int getCumulativeProgress() {

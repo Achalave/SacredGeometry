@@ -7,6 +7,7 @@ import java.io.PrintWriter;
 import java.util.Scanner;
 import java.util.logging.Level;
 import java.util.logging.Logger;
+import main.probabilities.WorkSection;
 
 //@author Michael Haertling
 public class FileManager {
@@ -55,25 +56,18 @@ public class FileManager {
     }
 
     public static String getProbabilityPath(int numDie, boolean d8) {
-        String path = COMBINATION_PATH + "D";
-        if (d8) {
-            path += 8;
-        } else {
-            path += 6;
-        }
-        path += "-" + numDie;
-        return path;
-    }
-
-    public static String getProbabilityPathIncomplete(int numDie, boolean d8){
         String path = COMBINATION_PATH + "@D";
         if (d8) {
             path += 8;
         } else {
             path += 6;
         }
-        path += "-" + numDie+"/";
+        path += "%"+numDie+"%";
         return path;
+    }
+
+    public static String getProbabilityPathIncomplete(WorkSection work){
+        return getProbabilityPath(work.getNumDie(),work.usesD8())+" "+work;
     }
     
     public static boolean makeDirectories(String path){

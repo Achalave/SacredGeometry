@@ -5,8 +5,8 @@
  */
 package main;
 
+import main.probabilities.ProbabilityPanel;
 import java.awt.Color;
-import java.awt.Component;
 import java.awt.Container;
 import java.awt.event.ActionEvent;
 import java.awt.event.ActionListener;
@@ -34,11 +34,9 @@ import javax.swing.Timer;
  */
 public class MainPanel extends javax.swing.JPanel {
 
-    
     final static int TIME_BEFORE_REFRESH = 1200;
     final static int ERROR_DISPLAY_TIME = 1200;
 
-    
     Timer comboRecalcTimer;
     Timer rollsError;
 
@@ -53,16 +51,16 @@ public class MainPanel extends javax.swing.JPanel {
     ArrayList<Metamagic> selectedMeta;
 
     DefaultListModel spellListModel;
-    
+
     ArrayList<Integer> rolls;
-    
+
     AddSpellPanel addSpell;
     AddMetaPanel addMeta;
-    
+
     boolean d8 = false;
     JCheckBox lastSelectedMeta;
-    
-    public static void main(String[] args){
+
+    public static void main(String[] args) {
         JFrame frame = new JFrame();
         MainPanel mp = new MainPanel();
         frame.add(mp);
@@ -71,43 +69,43 @@ public class MainPanel extends javax.swing.JPanel {
         frame.setVisible(true);
         frame.setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
     }
-    
+
     /**
      * Generates the menu bar object used by the frame for this application.
+     *
      * @return One JMenuBar.
      */
-    private JMenuBar generateMenuBar(){
+    private JMenuBar generateMenuBar() {
         rolls = new ArrayList<>();
-        
+
         final Container container = this;
         JMenuBar menuBar = new JMenuBar();
-        
+
         JMenu calculate = new JMenu("Features");
         menuBar.add(calculate);
-        
+
         JMenuItem item = new JRadioButtonMenuItem("D8 option");
-        ((JRadioButtonMenuItem)item).setSelected(d8);
-        item.addActionListener(new ActionListener(){
+        ((JRadioButtonMenuItem) item).setSelected(d8);
+        item.addActionListener(new ActionListener() {
             @Override
             public void actionPerformed(ActionEvent ae) {
                 System.out.println("TEST");
             }
         });
         calculate.add(item);
-        
-        
+
         item = new JMenuItem("Probabilities");
-        item.addActionListener(new ActionListener(){
+        item.addActionListener(new ActionListener() {
             @Override
             public void actionPerformed(ActionEvent ae) {
                 new ProbabilityPanel().displaySelf(container);
             }
         });
         calculate.add(item);
-        
+
         return menuBar;
     }
-    
+
     /**
      * Creates new form Test
      */
@@ -116,7 +114,7 @@ public class MainPanel extends javax.swing.JPanel {
 
         combiner = new Combiner();
         combiner.calculateBetweenCombos();
-        
+
         this.metamagicPanel.setLayout(new BoxLayout(metamagicPanel, BoxLayout.Y_AXIS));
         spellListModel = new DefaultListModel();
         this.spellsList.setModel(spellListModel);
@@ -124,17 +122,17 @@ public class MainPanel extends javax.swing.JPanel {
         spells = new HashMap<>();
         metamagic = new HashMap<>();
         selectedMeta = new ArrayList<>();
-        
+
         loadSpells();
         loadMetamagic();
 
         addSpell = new AddSpellPanel();
         addMeta = new AddMetaPanel();
-        
+
         this.comboRecalcTimer = new Timer(TIME_BEFORE_REFRESH, new ActionListener() {
             @Override
             public void actionPerformed(ActionEvent ae) {
-                combiner.setNumDie((int)dieCounter.getValue());
+                combiner.setNumDie((int) dieCounter.getValue());
                 combiner.calculateBetweenCombos();
             }
         });
@@ -150,18 +148,18 @@ public class MainPanel extends javax.swing.JPanel {
         this.rollsError.setRepeats(false);
 
     }
-    
+
     /**
      * Loads all the spells stored in the spells file
      */
     private void loadSpells() {
         try (Scanner scan = FileManager.openFileForReading(FileManager.SPELLS_PATH)) {
-            if(scan == null){
+            if (scan == null) {
                 return;
             }
-            
+
             String[] line;
-            while(scan.hasNext()){
+            while (scan.hasNext()) {
                 line = scan.nextLine().split("@");
                 this.addSpell(line[0], Integer.parseInt(line[1]));
             }
@@ -173,44 +171,44 @@ public class MainPanel extends javax.swing.JPanel {
      */
     private void loadMetamagic() {
         try (Scanner scan = FileManager.openFileForReading(FileManager.METAMAGIC_PATH)) {
-            if(scan == null){
+            if (scan == null) {
                 return;
             }
-            
+
             String[] line;
-            while(scan.hasNext()){
+            while (scan.hasNext()) {
                 line = scan.nextLine().split("@");
                 this.addMetamagic(line[0], Integer.parseInt(line[1]));
             }
         }
     }
 
-    private void saveSpells(){
+    private void saveSpells() {
         //Aggregate all the spells
         ArrayList<Spell> sp = new ArrayList(spells.values());
         Collections.sort(sp);
         //Save the spells to their file
         FileManager.deleteFile(FileManager.SPELLS_PATH);
         try (PrintWriter write = FileManager.openFileForWriting(FileManager.SPELLS_PATH)) {
-            for(Spell s:sp){
+            for (Spell s : sp) {
                 write.println(s);
             }
         }
     }
-    
-    private void saveMetamagic(){
+
+    private void saveMetamagic() {
         //Aggregate all the metamagic
         ArrayList<Metamagic> mm = new ArrayList(metamagic.values());
         Collections.sort(mm);
         //Save the metamagic to their file
         FileManager.deleteFile(FileManager.METAMAGIC_PATH);
         try (PrintWriter write = FileManager.openFileForWriting(FileManager.METAMAGIC_PATH)) {
-            for(Metamagic m:mm){
+            for (Metamagic m : mm) {
                 write.println(m);
             }
         }
     }
-    
+
     private void setupForRollsError() {
         //Store the previous text
         this.tempRollsStorage = rollTextField.getText();
@@ -223,34 +221,36 @@ public class MainPanel extends javax.swing.JPanel {
         this.setupForRollsError();
         this.rollTextField.setText("Not Enough Roll Values!");
     }
-    
-    private void displayInvalidRollTextError(){
+
+    private void displayInvalidRollTextError() {
         this.setupForRollsError();
         this.rollTextField.setText("Invalid Text!");
     }
-    
-    private void displayNoRollTextEntered(){
+
+    private void displayNoRollTextEntered() {
         this.setupForRollsError();
         this.rollTextField.setText("Invalid Text!");
-    }    
+    }
 
-    private void displayDieOutOfBoundsError(){
+    private void displayDieOutOfBoundsError() {
         this.setupForRollsError();
         this.rollTextField.setText("Die Value Out of Bounds!");
-    }  
-    
-    public void castSpell(){
+    }
+
+    public void castSpell() {
         //Find the primes that can be created
         int[] rollsA = new int[rolls.size()];
-        for(int i=0; i<rolls.size();i++){
+        for (int i = 0; i < rolls.size(); i++) {
             rollsA[i] = rolls.get(i);
         }
+
+        rolls.clear();
         
         CombinationData data = combiner.calculatePrimes(rollsA, d8);
-        
-        if(data == null){
+
+        if (data == null) {
             //If it failded to calculate the primes check the error message
-            switch(combiner.getError()){
+            switch (combiner.getError()) {
                 case Combiner.INVALID_TEXT_ERROR:
                     this.displayInvalidRollTextError();
                     return;
@@ -265,57 +265,57 @@ public class MainPanel extends javax.swing.JPanel {
                     return;
             }
         }
-        
+
         //Find the effective spell level
         int effectiveLevel = this.getEffectiveSpellLevel();
-        
+
         //See if any of the primes allow this to happen
-        HashMap<Integer,String> currentPrimes = data.getCurrentLevels();
-        for(int i=0; i<currentPrimes.size();i++){
-            if(currentPrimes.containsKey(effectiveLevel)){
-                succeedSpell(currentPrimes.get(effectiveLevel),data.getCurrentPrimes().get(effectiveLevel));
+        HashMap<Integer, String> currentPrimes = data.getCurrentLevels();
+        for (int i = 0; i < currentPrimes.size(); i++) {
+            if (currentPrimes.containsKey(effectiveLevel)) {
+                succeedSpell(currentPrimes.get(effectiveLevel), data.getCurrentPrimes().get(effectiveLevel));
                 return;
             }
         }
         failSpell();
     }
-    
-    private void succeedSpell(String equation, int prime){
-        String text = spellCastText.getText()+"\n\n";
-        text += "Using the equation "+equation+" = "+prime;
+
+    private void succeedSpell(String equation, int prime) {
+        String text = spellCastText.getText() + "\n\n";
+        text += "Using the equation " + equation + " = " + prime;
         spellCastText.setText(text);
     }
-    
-    private void failSpell(){
-        String text = spellCastText.getText()+"\n\n";
+
+    private void failSpell() {
+        String text = spellCastText.getText() + "\n\n";
         text += "No adequate prime could be generated to cast this spell.";
         spellCastText.setText(text);
     }
-    
-    private void updatePerliminaryText(){
+
+    private void updatePerliminaryText() {
         int el = this.getEffectiveSpellLevel();
-        if(el < 0){
+        if (el < 0) {
             spellCastText.setText("");
             return;
         }
-        String text = "The effective level to cast this spell is "+el;
+        String text = "Effective Level: " + el;
+        text += "\nRolls: " + rolls;
         spellCastText.setText(text);
     }
-    
-    public int getEffectiveSpellLevel(){
+
+    public int getEffectiveSpellLevel() {
         String s = this.spellsList.getSelectedValue();
         Spell spell = spells.get(s);
-        if(spell == null){
+        if (spell == null) {
             return -1;
         }
-        
+
         int effectiveLevel = spell.level;
-        for(Metamagic m:this.selectedMeta){
+        for (Metamagic m : this.selectedMeta) {
             effectiveLevel += m.levelInc;
         }
         return effectiveLevel;
     }
-    
 
     private void addMetamagic(String name, int level) {
         String label = name + " (+" + level + ")";
@@ -355,16 +355,16 @@ public class MainPanel extends javax.swing.JPanel {
         this.spells.put(label, spell);
         this.spellListModel.addElement(label);
     }
-    
-    private void removeSpell(){
+
+    private void removeSpell() {
         String s = this.spellsList.getSelectedValue();
         this.spells.remove(s);
         this.spellListModel.removeElementAt(this.spellsList.getSelectedIndex());
         this.saveSpells();
     }
-    
-    private void removeMeta(){
-        if(this.lastSelectedMeta != null){
+
+    private void removeMeta() {
+        if (this.lastSelectedMeta != null) {
             this.metamagicPanel.remove(lastSelectedMeta);
             this.metamagic.remove(lastSelectedMeta.getText());
             this.metamagicPanel.revalidate();
@@ -372,6 +372,44 @@ public class MainPanel extends javax.swing.JPanel {
             this.saveMetamagic();
         }
     }
+
+    private void addRoll(String text) {
+        if (text.isEmpty()) {
+            this.displayNoRollTextEntered();
+            return;
+        }
+
+        //Parse the string
+        String[] rollsList = text.split("[^0-9+]");
+
+        if (rollsList.length == 0) {
+            this.displayInvalidRollTextError();
+            return;
+        }
+
+        int[] rls = new int[rollsList.length];
+
+        for (int i = 0; i < rollsList.length; i++) {
+            rls[i] = Integer.parseInt(rollsList[i]);
+            //Make sure the roll is within range
+            if (d8 && rls[i] > 8 || !d8 && rls[i] > 6) {
+                this.displayDieOutOfBoundsError();
+                return;
+            }
+        }
+
+        for (int roll : rls) {
+            this.rolls.add(roll);
+            if (this.rolls.size() == (int) this.dieCounter.getValue()) {
+                castSpell();
+                return;
+            }
+        }
+
+        this.updatePerliminaryText();
+        this.rollTextField.setText("");
+    }
+
     /**
      * This method is called from within the constructor to initialize the form.
      * WARNING: Do NOT modify this code. The content of this method is always
@@ -558,24 +596,24 @@ public class MainPanel extends javax.swing.JPanel {
         int level;
 
         addMeta.displaySelf(this);
-        
-        if(addMeta.getExitStatus() == AddMetaPanel.EXIT_FAILED){
+
+        if (addMeta.getExitStatus() == AddMetaPanel.EXIT_FAILED) {
             return;
         }
-                
+
         name = addMeta.getMetaName();
         level = addMeta.getMetaLevel();
-        
-        if(name == null || name.isEmpty()){
+
+        if (name == null || name.isEmpty()) {
             JOptionPane.showMessageDialog(this, "You must provide a metamagic name.");
             return;
-        }else if(spells.containsKey(name)){
+        } else if (spells.containsKey(name)) {
             JOptionPane.showMessageDialog(this, "That metamagic already exists in the list.");
             return;
         }
-        
+
         this.addMetamagic(name, level);
-        
+
         this.saveMetamagic();
     }//GEN-LAST:event_addMetaButtonActionPerformed
 
@@ -605,24 +643,24 @@ public class MainPanel extends javax.swing.JPanel {
         int level;
 
         addSpell.displaySelf(this);
-        
-        if(addSpell.getExitStatus() == AddSpellPanel.EXIT_FAILED){
+
+        if (addSpell.getExitStatus() == AddSpellPanel.EXIT_FAILED) {
             return;
         }
-        
+
         name = addSpell.getSpellName();
         level = addSpell.getSpellLevel();
 
-        if(name == null || name.isEmpty()){
+        if (name == null || name.isEmpty()) {
             JOptionPane.showMessageDialog(this, "You must provide a spell name.");
             return;
-        }else if(spells.containsKey(name)){
+        } else if (spells.containsKey(name)) {
             JOptionPane.showMessageDialog(this, "That spell already exists in the list.");
             return;
         }
-        
+
         this.addSpell(name, level);
-        
+
         this.saveSpells();
     }//GEN-LAST:event_addSpellButtonActionPerformed
 
@@ -635,8 +673,7 @@ public class MainPanel extends javax.swing.JPanel {
             combiner.calculateBetweenCombos();
         }
 
-        //Calculate the primes
-        castSpell();
+        addRoll(this.rollTextField.getText());
     }//GEN-LAST:event_submitRollButtonActionPerformed
 
     private void deleteSpellButtonActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_deleteSpellButtonActionPerformed
@@ -646,7 +683,6 @@ public class MainPanel extends javax.swing.JPanel {
     private void deleteMetaButtonActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_deleteMetaButtonActionPerformed
         removeMeta();
     }//GEN-LAST:event_deleteMetaButtonActionPerformed
-
 
 
     // Variables declaration - do not modify//GEN-BEGIN:variables
