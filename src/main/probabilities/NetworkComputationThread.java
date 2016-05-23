@@ -63,9 +63,8 @@ public class NetworkComputationThread extends ComputationThread {
                         stopComputing();
                         break;
                 }
-            } //There was an error with the connection
+            }//The connection was lost
             catch (IOException ex) {
-                System.err.println("Connection Closed: "+connection);
                 stopComputing();
             }
         }

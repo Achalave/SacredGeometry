@@ -96,9 +96,4 @@ public class Connection {
         }
     }
 
-    @Override
-    public String toString() {
-        return this.socket.getInetAddress().getCanonicalHostName();
-    }
-
 }
